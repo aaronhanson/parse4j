@@ -7,15 +7,17 @@ import java.util.List;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.parse4j.ParseObject;
+import org.parse4j.ParseQuery;
 import org.parse4j.command.ParsePostCommand;
 import org.parse4j.command.ParseResponse;
 
 public class ParsePush {
 
 	private List<String> channelSet = null;
-	// private ParseQuery<ParseInstallation> query = null;
-	private Date expirationTime = null;
-	private Date pushTime = null;
+	private ParseQuery<ParseObject> query = null;
+	private String expirationTime = null;
+	private String pushTime = null;
 	private Long expirationTimeInterval = null;
 	private Boolean pushToIOS = null;
 	private Boolean pushToAndroid = null;
@@ -24,6 +26,8 @@ public class ParsePush {
 	public void setChannel(String channel) {
 		this.channelSet = new ArrayList<String>();
 		this.channelSet.add(channel);
+        // can't have both channel and targeted, if needed, needs to go in query
+        this.query = null;
 	}
 
 	public void setChannels(Collection<String> channels) {
@@ -31,11 +35,11 @@ public class ParsePush {
 		this.channelSet.addAll(channels);
 	}
 	
-	public void setPushTime(Date time) {
+	public void setPushTime(String time) {
 		this.pushTime = time;
 	}	
 
-	public void setExpirationTime(Date time) {
+	public void setExpirationTime(String time) {
 		this.expirationTime = time;
 		this.expirationTimeInterval = null;
 	}
@@ -54,31 +58,37 @@ public class ParsePush {
 		this.pushData.put("alert", message);
 	}
         
-        public void setBadge(String badge) {
-                if(badge == null || badge.length() == 0) {
-                    badge = "Increment";
-                }
-                this.pushData.put("badge", badge);
+    public void setBadge(String badge) {
+        if (badge == null || badge.length() == 0) {
+            badge = "Increment";
         }
-        
-        public void setSound(String sound) {
-                this.pushData.put("sound", sound);
-        }
-        
-        public void setTitle(String title) {
-                this.pushData.put("title", title);
-        }
-        
-        public void setData(String key, String value) {
-                this.pushData.put(key, value);
-        }
+        this.pushData.put("badge", badge);
+    }
+    
+    public void setSound(String sound) {
+        this.pushData.put("sound", sound);
+    }
+    
+    public void setTitle(String title) {
+        this.pushData.put("title", title);
+    }
+    
+    public void setData(String key, String value) {
+        this.pushData.put(key, value);
+    }
 	
-	public void send() throws ParseException {
+    public void setQuery(ParseQuery<ParseObject> query) {
+        this.query = query;
+        // can't set targeted and channel, add channels to query if needed
+        this.channelSet = null;
+    }
+
+    public void send() throws ParseException {
 		ParsePostCommand command = new ParsePostCommand("push");
-                JSONObject requestData = getJSONData();
+        JSONObject requestData = getJSONData();
 		command.setData(requestData);
 		ParseResponse response = command.perform();
-		if(response.isFailed()) {
+		if (response.isFailed()) {
 			throw response.getException();
 		}	
 	}	
@@ -100,29 +110,30 @@ public class ParsePush {
 	}
 
 	private JSONObject getJSONData() {
-                JSONObject data = new JSONObject();
-                data.put("data", this.pushData);
+        JSONObject data = new JSONObject();
+        data.put("data", this.pushData);
 
-		if (this.channelSet == null) {
-			data.put("channel", "");
-		} else {
+		if (this.channelSet != null) {
 			data.put("channels", new JSONArray(this.channelSet));
 		}
 		
-		if(pushTime != null) {
-			data.put("push_time", Parse.encodeDate(pushTime));
+		if (pushTime != null) {
+			data.put("push_time", this.pushTime);
 		}
 		
-		if(expirationTimeInterval != null) {
+		if (expirationTimeInterval != null) {
 			data.put("expiration_interval", expirationTimeInterval);
 		}
 		
-		if(expirationTime != null) {
+		if (expirationTime != null) {
 			data.put("expiration_time", expirationTime);
 		}
+
+        if (query != null && query.toREST().has("where")) {
+            data.put("where", query.toREST().get("where"));
+        }
 		
 		return data;
-
 	}
 
 }
