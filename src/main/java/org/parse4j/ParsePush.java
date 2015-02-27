@@ -83,14 +83,15 @@ public class ParsePush {
         this.channelSet = null;
     }
 
-    public void send() throws ParseException {
+    public ParseResponse send() throws ParseException {
 		ParsePostCommand command = new ParsePostCommand("push");
         JSONObject requestData = getJSONData();
 		command.setData(requestData);
 		ParseResponse response = command.perform();
 		if (response.isFailed()) {
 			throw response.getException();
-		}	
+        }
+        return response;
 	}	
 	
 	public void sendInBackground(String message, List<String> channels) {
@@ -109,7 +110,7 @@ public class ParsePush {
 		}
 	}
 
-	private JSONObject getJSONData() {
+	public JSONObject getJSONData() {
         JSONObject data = new JSONObject();
         data.put("data", this.pushData);
 
